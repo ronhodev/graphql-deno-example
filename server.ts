@@ -1,5 +1,9 @@
+// import Third Party Module
 import { Application, Router } from 'https://deno.land/x/oak/mod.ts';
+
+// import module from Pika CDN
 import { buildSchema, graphql } from 'https://cdn.pika.dev/graphql@^15.0.0';
+
 
 const schema = buildSchema(`
   type Book {
@@ -10,7 +14,6 @@ const schema = buildSchema(`
 
   type Query {
     books: [Book]
-    hello: String
   }
 `);
 
@@ -30,53 +33,29 @@ const books = [
 const resolvers = {
   books: () => {
     return books;
-  },
-  hello: () => 'World'
+  }
 }
 
 const app = new Application();
 const port = 7777;
 
-const graphiqlHTML = `<html>
-<head>
-  <title>Simple GraphiQL Example</title>
-  <link href="https://unpkg.com/graphiql/graphiql.min.css" rel="stylesheet" />
-</head>
-
-<body style="margin: 0;">
-  <div id="graphiql" style="height: 100vh;"></div>
-
-  <script crossorigin src="https://unpkg.com/react/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom/umd/react-dom.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/graphiql/graphiql.min.js"></script>
-
-  <script>
-    const graphQLFetcher = graphQLParams =>
-      fetch('http://localhost:${port}/graphql', {
-        method: 'post',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(graphQLParams),
-      })
-        .then(response => response.json())
-        .catch(() => response.text());
-    ReactDOM.render(
-      React.createElement(GraphiQL, { fetcher: graphQLFetcher }),
-      document.getElementById('graphiql'),
-    );
-  </script>
-</body>
-</html>`
+// Use the Deno runtime to read the static GraphiQL HTML File
+const decoder = new TextDecoder();
+const data = await Deno.readFile('./graphiql.html');
+const graphiqlHTML = decoder.decode(data);
 
 const router = new Router();
 
 router
   .get('/graphql', context => {
+    // return GraphiQL IDE
     context.response.body = graphiqlHTML;
   })
   .post('/graphql', async context => {
     const requestBody = await context.request.body();
     const query = requestBody.value?.query ?? {};
-
+    
+    // run the query and return the response
     graphql(schema, query, resolvers).then((response => {
       context.response.body = response;
     }))
